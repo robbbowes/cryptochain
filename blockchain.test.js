@@ -2,10 +2,12 @@ const Blockchain = require('./blockchain');
 const Block = require('./block');
 
 describe('Blockchain', () => {
-    let blockchain = new Blockchain();
+    let blockchain, newChain, originalChain;
 
     beforeEach(() => {
         blockchain = new Blockchain();
+        newChain = new Blockchain();
+        originalChain = blockchain.chain;
     })
 
     it('contains a `chain` Array instance', () => {
@@ -24,6 +26,7 @@ describe('Blockchain', () => {
     })
 
     describe('isValidChain()', () => {
+
         describe('when the chain does not start with the genesis block', () => {
             it('returns false', () => {
                 blockchain.chain[0] = { data: 'fake-genesis' }
@@ -35,9 +38,9 @@ describe('Blockchain', () => {
         describe('when the chain does start with the genesis block and has multiple blocks', () => {
 
             beforeEach(() => {
-                blockchain.addBlock({ data: 'Bullish'})
-                blockchain.addBlock({ data: 'Bearish'})
-                blockchain.addBlock({ data: 'Underwater'})
+                blockchain.addBlock({ data: 'Bullish' })
+                blockchain.addBlock({ data: 'Bearish' })
+                blockchain.addBlock({ data: 'Underwater' })
             })
 
             describe('and a lastHash reference has changed', () => {
@@ -61,6 +64,81 @@ describe('Blockchain', () => {
                     expect(Blockchain.isValidChain(blockchain.chain)).toBe(true);
                 })
             })
+
+        })
+        
+    })
+
+    describe('replaceChain()', () => {
+        let errorMock, logMock;
+
+        beforeEach(() => {
+            errorMock = jest.fn();
+            logMock = jest.fn();
+            global.console.error = errorMock;
+            global.console.log = logMock;
+        })
+
+        describe('when the new chain is longer', () => {
+
+            beforeEach(() => {
+                newChain.addBlock({ data: 'Bullish' })
+                newChain.addBlock({ data: 'Bearish' })
+                newChain.addBlock({ data: 'Underwater' })
+            })
+
+            describe('and the chain is invalid', () => {
+
+                beforeEach(() => {
+                    newChain.chain[2].hash = 'fake-hash';
+                    blockchain.replaceChain(newChain.chain);
+                })
+
+                it('does not replace the chain', () => {
+                    expect(blockchain.chain).toEqual(originalChain);
+                })
+
+                it('logs an error', () => {
+                    expect(errorMock).toHaveBeenCalled();
+                })
+            })
+
+            describe('and the chain is valid', () => {
+
+                beforeEach(() => {
+                    blockchain.addBlock('foo');
+                    newChain.addBlock('foo');
+                    newChain.addBlock('bar');
+                    blockchain.replaceChain(newChain.chain);
+                })
+
+                it('replaces the chain', () => {
+                    expect(blockchain.chain).toEqual(newChain.chain);
+                })
+
+                it('logs to the console that the chain has been replaced', () => {
+                    expect(logMock).toHaveBeenCalled();
+                })
+            })
+
+        })
+
+        describe('when the new chain is not longer', () => {
+
+            beforeEach(() => {
+                blockchain.addBlock('foo')
+                newChain.addBlock('bar')
+                blockchain.replaceChain(newChain.chain);
+            })
+
+            it('does not replace the chain', () => {
+                expect(blockchain.chain).toEqual(originalChain);
+            })
+
+            it('logs an error', () => {
+	            expect(errorMock).toHaveBeenCalled();
+            })
+
         })
     })
 })
